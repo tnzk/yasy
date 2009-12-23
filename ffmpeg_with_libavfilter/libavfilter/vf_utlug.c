@@ -1,18 +1,19 @@
 /*
  * utlug.c - Video filter for University of Tsukuba Linux User Group study sessions.
  * 
- * This filter is based on vf_drawbox.c which is an example contained libavfilter.
+ * This filter is based on vf_drawbox.c which is an example contained by libavfilter.
  * Many thanks!
  *
  */
 
-// These libraries will 
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 
 // Using GD libraries
 #include <gd.h>
+
+// Using Lua libraries
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -33,6 +34,19 @@ typedef struct
   int angle;
 } UtlugTransform;
 
+typedef int UtlugType;
+
+#define UTLUG_IMAGE 128
+
+typedef struct
+{
+  UtlugTransform tf;
+  UtlugTransform df;
+  gdImage* img;
+  UtlugType type;
+  char* id;
+} UtlugObj;
+
 typedef struct
 {
   int x, y, w, h;
@@ -43,6 +57,48 @@ typedef struct
   int num_images;
 } UtlugContext;
 
+void get_global_string( lua_State* L, const char* key, char* dest)
+{
+  lua_getglobal(L, key);
+  strcpy( dest,  lua_tostring(L, -1));
+  lua_pop(L, 1);
+}
+
+char* get_str_field( lua_State* L, const char* key)
+{
+  int buf_size;
+  char* dest;
+
+  lua_pushstring(L, key);
+  lua_gettable(L, -2);
+  buf_size = lua_objlen(L, -1);
+  dest = (char*)av_malloc( buf_size + 1);
+  strcpy( dest,  lua_tostring(L, -1));
+  lua_pop(L, 1);
+  return dest;
+}
+
+int get_int_field( lua_State* L, const char* key)
+{
+  int result;
+  lua_pushstring(L, key);
+  lua_gettable(L, -2);
+  result = lua_tointeger(L, -1);
+  lua_pop(L, 1);
+  return result;
+}
+
+UtlugType type_str2int( const char* s)
+{
+  switch(s[0]){
+  case 'i': return UTLUG_IMAGE;
+  }
+  return 0;
+}
+
+UtlugObj* objects;
+int num_objs;
+
 static av_cold int init(AVFilterContext *ctx, const char *args, void *opaque)
 {
   UtlugContext *context= ctx->priv;
@@ -51,10 +107,11 @@ static av_cold int init(AVFilterContext *ctx, const char *args, void *opaque)
   char test[1024];
   FILE* file;
   lua_State* L;
+  int i;
 
   if(!args || strlen(args) > 1024) {
-    av_log(ctx, AV_LOG_ERROR, "Invalid arguments!\n");
-    return -1;
+    av_log(ctx, AV_LOG_ERROR, "Invalid arguments!\n"); 
+   return -1;
   }
 
   sscanf(args, "%s", lua_filename);
@@ -71,19 +128,39 @@ static av_cold int init(AVFilterContext *ctx, const char *args, void *opaque)
     return 1;
   }
 
-
-  lua_getglobal(L, "title");
-  lua_getglobal(L, "name");
-  strcpy( context->name,  lua_tostring(L, -1));
-  strcpy( context->title, lua_tostring(L, -2));
-  lua_pop(L, 2);
+  // Get title and name
+  get_global_string( L, "title", context->title);
+  get_global_string( L, "name",  context->name);
 
   lua_getglobal(L, "objects");
-  lua_pushnil(L);  
-  while (lua_next(L, -2) != 0) {  
+  lua_pushnil(L);
+  num_objs = lua_objlen(L, -2);
+  objects = (UtlugObj*)av_malloc( sizeof(UtlugObj) * num_objs);
+
+  for( i = 0; lua_next(L, -2); i++){
     lua_pushvalue(L, -2);
-    av_log(ctx, AV_LOG_ERROR, "%s, %s\n", lua_tostring(L, -2), lua_tostring(L, -1));
-    lua_pop(L, 2);
+    lua_pop(L, 1);
+
+    objects[i].tf.x  = get_int_field(L, "x");
+    objects[i].tf.y  = get_int_field(L, "y");
+    objects[i].tf.angle  = get_int_field(L, "angle");
+
+    objects[i].df.x  = get_int_field(L, "dx");
+    objects[i].df.y  = get_int_field(L, "dy");
+    objects[i].df.angle  = get_int_field(L, "dtheta");
+
+    objects[i].id = get_str_field(L, "id");
+    objects[i].type = type_str2int( get_str_field(L, "type"));
+
+    if( objects[i].type == UTLUG_IMAGE){
+      char* src;
+      src = get_str_field(L, "src");
+
+      file = fopen( src, "rb");
+      objects[i].img = gdImageCreateFromPng( file);
+      fclose( file);
+    }
+    lua_pop(L, 1);
   }
   lua_pop(L, 1);  
   
@@ -106,9 +183,16 @@ static av_cold int uninit(AVFilterContext *ctx)
   UtlugContext *context= ctx->priv;
   int i;
 
-  for( int i = 0; i < context->num_images; i++){
+  for( i = 0; i < context->num_images; i++){
     gdImageDestroy(context->loaded_images[i]);
   }
+
+  for( i = 0; i < num_objs; i++){
+    gdImageDestroy( objects[i].img);
+  }
+
+  av_free(context->loaded_images);
+  av_free(objects);
 }
 
 
@@ -244,14 +328,20 @@ void put_string( AVFilterPicRef* pic, UtlugContext* context, char*s,
 
 static void end_frame(AVFilterLink *link)
 {
-  static int i = 0;
-  UtlugTransform tr_headline = { 10, 10, i++};
+  int i;
+  static int cnt = 0;
+  UtlugTransform tr_headline = { 10, 10, cnt++};
   UtlugTransform tr_title = {10, 0, 0};
   UtlugContext *context = link->dst->priv;
   AVFilterLink *output = link->dst->outputs[0];
   AVFilterPicRef *pic = link->cur_pic;
   
-  overlay(pic, context, context->loaded_images[0], &tr_headline);
+  for( i = 0; i < num_objs; i++){
+    overlay(pic, context, objects[i].img, &objects[i].tf);
+    objects[i].tf.x += objects[i].df.x;
+    objects[i].tf.y += objects[i].df.y;
+    objects[i].tf.angle += objects[i].df.angle;
+  }
 
   put_string(pic, context, "USBからLinuxを起動してみよう！ / うぶんちゅ! ",
 	     0xffffffff, 0x653cc1ff,
