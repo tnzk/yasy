@@ -313,7 +313,7 @@ void put_string( AVFilterPicRef* pic, UtlugContext* context, char*s,
   int ba = 127 - ((bgcolor & 0x000000ff) >> 1);
 
   int x, y;
-  int margin = size / 10;
+  int margin = size / 5;
   int total_margin = margin << 1;
 
   gdImageStringFT( NULL, &brect[0], 0,
