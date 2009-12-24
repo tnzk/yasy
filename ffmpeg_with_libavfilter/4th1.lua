@@ -1,10 +1,9 @@
 
-title = "testtitle"
-name = "testname"
+title = "うぶんちゅ"
+name = "monoqlo"
 
 objects = {
-   {
-      -- ヘッドライン
+   {  -- ヘッドライン
       id = "headline",
       type = "image",
       src = "headline.png",
@@ -16,8 +15,7 @@ objects = {
       dy = 0,
       dtheta = 0
    },  
-   {
-      -- ヘッドラインでまわってるやつ
+   {  -- ヘッドラインでまわってるやつ
       id = "headline_loop",
       type = "image",
       src = "headline_loop.png",
@@ -29,18 +27,37 @@ objects = {
       dy = 0,
       dtheta = 1
    },
-   {
-      -- 発表者名
-      id = "headline_loop",
-      type = "image",
-      src = "headline_loop.png",
+   {  -- 発表者名
+      id = "speaker",
+      type = "string",
+      src = name,
+      font = "/usr/share/fonts/ipa-pgothic/ipagp.otf",
+      size = 8,
+      color = 0xffffffff,
+      bgcolor = 0x653cc1ff,
 
-      x = -4,
-      y = 4,
+      x = 150,
+      y = 50,
       angle = 0,
       dx = 0,
       dy = 0,
-      dtheta = 1
+      dtheta = 0
+   },
+   {  -- 発表タイトル
+      id = "title",
+      type = "string",
+      src = title,
+      font = "/usr/share/fonts/ipa-pgothic/ipagp.otf",
+      size = 14,
+      color = 0xffffffff,
+      bgcolor = 0x653cc1ff,
+
+      x = 120,
+      y = 20,
+      angle = 0,
+      dx = 0,
+      dy = 0,
+      dtheta = 0
    }
 
 }

@@ -36,15 +36,21 @@ typedef struct
 
 typedef int UtlugType;
 
-#define UTLUG_IMAGE 128
+#define UTLUG_STRING  64
+#define UTLUG_IMAGE  128
 
 typedef struct
 {
+  char* id;
+  UtlugType type;
+  gdImage* img;      // TYPE = image
+  char* s;           // TYPE = string
+  char* font;        // TYPE = string
+  int color;         // TYPE = string
+  int bgcolor;       // TYPE = string
+  int size;          // TYPE = string
   UtlugTransform tf;
   UtlugTransform df;
-  gdImage* img;
-  UtlugType type;
-  char* id;
 } UtlugObj;
 
 typedef struct
@@ -53,8 +59,6 @@ typedef struct
   int vsub, hsub;   //< chroma subsampling
   char title[255];
   char name[255];
-  gdImage** loaded_images;
-  int num_images;
 } UtlugContext;
 
 void get_global_string( lua_State* L, const char* key, char* dest)
@@ -92,6 +96,7 @@ UtlugType type_str2int( const char* s)
 {
   switch(s[0]){
   case 'i': return UTLUG_IMAGE;
+  case 's': return UTLUG_STRING;
   }
   return 0;
 }
@@ -152,6 +157,14 @@ static av_cold int init(AVFilterContext *ctx, const char *args, void *opaque)
     objects[i].id = get_str_field(L, "id");
     objects[i].type = type_str2int( get_str_field(L, "type"));
 
+    if( objects[i].type == UTLUG_STRING){
+      objects[i].s       = get_str_field(L, "src");
+      objects[i].font    = get_str_field(L, "font");
+      objects[i].size    = get_int_field(L, "size");
+      objects[i].color   = get_int_field(L, "color");
+      objects[i].bgcolor = get_int_field(L, "bgcolor");
+    }
+
     if( objects[i].type == UTLUG_IMAGE){
       char* src;
       src = get_str_field(L, "src");
@@ -160,18 +173,10 @@ static av_cold int init(AVFilterContext *ctx, const char *args, void *opaque)
       objects[i].img = gdImageCreateFromPng( file);
       fclose( file);
     }
+
     lua_pop(L, 1);
   }
   lua_pop(L, 1);  
-  
-  av_log(ctx, AV_LOG_ERROR, "%s\n", context->name);
-  av_log(ctx, AV_LOG_ERROR, "%s\n", context->title);
-
-  context->num_images = 1;
-  context->loaded_images = (gdImage**)av_malloc( sizeof(gdImage*));
-  file = fopen( "headline.png", "rb");
-  context->loaded_images[0] = gdImageCreateFromPng( file);
-  fclose( file);
   
   lua_close(L);
 
@@ -183,15 +188,18 @@ static av_cold int uninit(AVFilterContext *ctx)
   UtlugContext *context= ctx->priv;
   int i;
 
-  for( i = 0; i < context->num_images; i++){
-    gdImageDestroy(context->loaded_images[i]);
-  }
-
   for( i = 0; i < num_objs; i++){
-    gdImageDestroy( objects[i].img);
+    switch(objects[i].type){
+    case UTLUG_IMAGE:
+      gdImageDestroy( objects[i].img);
+      break;
+    case UTLUG_STRING:
+      av_free( objects[i].s);
+      break;
+
+    }
   }
 
-  av_free(context->loaded_images);
   av_free(objects);
 }
 
@@ -330,22 +338,28 @@ static void end_frame(AVFilterLink *link)
 {
   int i;
   static int cnt = 0;
-  UtlugTransform tr_headline = { 10, 10, cnt++};
+
   UtlugTransform tr_title = {10, 0, 0};
   UtlugContext *context = link->dst->priv;
   AVFilterLink *output = link->dst->outputs[0];
   AVFilterPicRef *pic = link->cur_pic;
   
   for( i = 0; i < num_objs; i++){
-    overlay(pic, context, objects[i].img, &objects[i].tf);
-    objects[i].tf.x += objects[i].df.x;
-    objects[i].tf.y += objects[i].df.y;
-    objects[i].tf.angle += objects[i].df.angle;
+    UtlugObj* obj = objects + i;
+    switch(obj->type){
+    case UTLUG_IMAGE:
+      overlay(pic, context, obj->img, &(obj->tf));
+      break;
+    case UTLUG_STRING:
+      put_string(pic, context, obj->s,
+		 obj->color, obj->bgcolor,
+		 obj->size, obj->font, &(obj->tf));
+      break;
+    }
+    obj->tf.x += obj->df.x;
+    obj->tf.y += obj->df.y;
+    obj->tf.angle += obj->df.angle;
   }
-
-  put_string(pic, context, "USBからLinuxを起動してみよう！ / うぶんちゅ! ",
-	     0xffffffff, 0x653cc1ff,
-	     10, "/usr/share/fonts/ipa-pgothic/ipagp.otf", &tr_title);
 
   avfilter_draw_slice(output, 0, pic->h);
   avfilter_end_frame(output);
