@@ -1,0 +1,12 @@
+#!/bin/sh
+
+in=$1
+out=$2
+script=$3
+
+if [ $# -ne 3 ]; then
+  echo "Usage: $0 infile outfile script" 1>&2
+  exit 1
+fi
+
+./ffmpeg -i $in -vfilters "utlug=$script" -b 600k $out
