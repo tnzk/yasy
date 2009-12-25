@@ -1,0 +1,12 @@
+prefix=
+exec_prefix=
+libdir=${pcfiledir}
+includedir=/home/tnzk/src/yasy
+
+Name: libavformat
+Description: FFmpeg container format library
+Version: 52.39.2
+Requires: libavcodec = 52.39.0
+Conflicts:
+Libs: ${libdir}/libavformat.a   -lz -lbz2 -lm  -lasound -ldl -lasound -lasound
+Cflags: -I${includedir}

@@ -1,0 +1,12 @@
+prefix=
+exec_prefix=
+libdir=${pcfiledir}
+includedir=/home/tnzk/src/yasy
+
+Name: libavfilter
+Description: FFmpeg video filtering library
+Version: 1.8.0
+Requires: libavutil = 50.4.0
+Conflicts:
+Libs: ${libdir}/libavfilter.a   -lz -lbz2 -lm  -lasound -ldl -lasound -lasound
+Cflags: -I${includedir}

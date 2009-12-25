@@ -1,0 +1,12 @@
+prefix=
+exec_prefix=
+libdir=${pcfiledir}
+includedir=/home/tnzk/src/yasy
+
+Name: libavcodec
+Description: FFmpeg codec library
+Version: 52.39.0
+Requires: libavutil = 50.4.0
+Conflicts:
+Libs: ${libdir}/libavcodec.a   -lz -lbz2 -lm  -lasound -ldl -lasound -lasound
+Cflags: -I${includedir}
