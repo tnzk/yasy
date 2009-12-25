@@ -365,7 +365,7 @@ static void end_frame(AVFilterLink *link)
   avfilter_end_frame(output);
 }
 
-AVFilter avfilter_vf_drawbox=
+AVFilter avfilter_vf_utlug=
 {
     .name      = "utlug",
     .priv_size = sizeof(UtlugContext),
