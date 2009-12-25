@@ -1,6 +1,6 @@
 
-title = "うぶんちゅ"
-name = "monoqlo"
+title = "カーネルをmakeしよう!"
+name = "opentaka"
 
 objects = {
    {  -- ヘッドライン
