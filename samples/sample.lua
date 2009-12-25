@@ -1,12 +1,12 @@
 
-title = "USBからLinuxを起動してみよう！"
-name = "monoqlo"
+title = "タイトル"
+name = "sample name"
 
 objects = {
    {  -- ヘッドライン
       id = "headline",
       type = "image",
-      src = "headline.png",
+      src = "samples/headline.png",
 
       x = 10,
       y = 10,
@@ -18,7 +18,7 @@ objects = {
    {  -- ヘッドラインでまわってるやつ
       id = "headline_loop",
       type = "image",
-      src = "headline_loop.png",
+      src = "samples/headline_loop.png",
 
       x = -4,
       y = 4,
